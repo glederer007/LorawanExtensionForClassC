@@ -17,12 +17,7 @@ import (
 	"encoding/hex"
 	"strconv"
 	"strings"
-//	"encoding/base64"
-//	"net/url"
 )
-
-// const LoraServer="https://192.168.0.100:8888"
-// const MQTTServer="tcp://192.168.0.100:1883"
 
 //define a function for the default message handler
 var f MQTT.MessageHandler = func(client MQTT.Client, msg MQTT.Message) {
@@ -139,7 +134,6 @@ func main() {
 		fmt.Println("no selection")
 		os.Exit(0)
 	}
-//	fmt.Println(selectedNode)
 	selectedNode=selectedNode-1 //index starts with 0
 
 
@@ -223,23 +217,10 @@ copy(nwkSKey0[:], nwkSKey3[0:16])
 copy(appSKey0[:], appSKey3[0:16])
 copy(devAddr0[:], devAddr3[0:4])
 fPort0 := uint8(port)
-//record2.FCntDown = record2.FCntDown + 1
 record2.FCntDown ++
 
 fmt.Println("counter down plus", record2.FCntDown)
 // prepare data end
-
-
-
-//fmt.Println("nwks1: ",nwkSKey1)
-
-//nwkSKey := [16]byte{111, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-//appSKey := [16]byte{161, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
-//fPort := uint8(99)
-
-
-//fmt.Println("nwks0: ",nwkSKey)
-
 
 phy := lorawan.PHYPayload{
     MHDR: lorawan.MHDR{
@@ -290,7 +271,6 @@ fmt.Println(loraBytes)
 	if err4 != nil {
 		fmt.Println("error:", err4)
 	}
-//	fmt.Println("JSON:", string(b4))
 	req4, err4 := http.NewRequest("PUT", url, bytes.NewBuffer(b4))
 	req4.Header.Set("Content-Type", "application/json")
 	req4.Header.Set("Accept", "application/json")
@@ -336,17 +316,14 @@ fmt.Println(loraBytes)
 //create message
 
 //mqttMsg := 
-	ts:= string(str) //ts := "YG+jqwcAAQBjAjXuKvdE9g=="
+	ts:= string(str) 
 	ms := "{\"phyPayload\": \"%s\",\"txInfo\": {\"codeRate\": \"4/5\",\"dataRate\": {\"bandwidth\": 125,\"modulation\": \"LORA\",\"spreadFactor\": 12 }, \"frequency\": 869525000,\"immediately\": true, \"mac\": \"68c90bffffece086\", \"power\": 14}}"
 	mqttMsg :=fmt.Sprintf(ms, ts)
 	fmt.Println("mqtt msg: ", mqttMsg)
-//	fmt.Println("the end")
-
 
   //Publish a message to /go-mqtt/sample at qos 1 and wait for the receipt
   //from the server after sending each message
   
-//    text := fmt.Sprintf("this is msg #%d!", 1)
     token := c.Publish("gateway/68c90bffffece086/tx", 0, false, mqttMsg)
     token.Wait()
   
