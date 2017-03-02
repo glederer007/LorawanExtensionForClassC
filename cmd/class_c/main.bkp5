@@ -1,0 +1,361 @@
+package main
+
+import (
+	"bufio"
+	"os"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+        "crypto/tls"
+        "io/ioutil"
+        "bytes"
+        "github.com/brocaar/lorawan"
+	"encoding/hex"
+	"strconv"
+	"strings"
+//	"encoding/base64"
+//	"net/url"
+)
+
+type ApiGetNodeSessionResponse struct {
+	DevAddr string `json:"devAddr"`
+	AppEUI string `json:"appEUI"`
+	DevEUI string `json:"devEUI"`
+	AppSKey string `json:"appSKey"`
+	NwkSKey string `json:"nwkSKey"`
+	FCntUp uint32 `json:"fCntUp"`
+	FCntDown uint32 `json:"fCntDown"`
+	RxDelay int `json:"rxDelay"`
+	Rx1DROffset int `json:"rx1DROffset"`
+	CFList []int `json:"cFList"`
+	RxWindow string `json:"rxWindow"`
+	Rx2DR int `json:"rx2DR"`
+	RelaxFCnt bool `json:"relaxFCnt"`
+	AdrInterval int `json:"adrInterval"`
+	InstallationMargin int `json:"installationMargin"`
+	NbTrans int `json:"nbTrans"`
+	TxPower int `json:"txPower"`
+}
+
+type ApiGetNodes struct {
+	Result []struct {
+		AdrInterval int `json:"adrInterval"`
+		AppEUI string `json:"appEUI"`
+		AppKey string `json:"appKey"`
+		ChannelListID string `json:"channelListID"`
+		DevEUI string `json:"devEUI"`
+		InstallationMargin int `json:"installationMargin"`
+		Name string `json:"name"`
+		RelaxFCnt bool `json:"relaxFCnt"`
+		Rx1DROffset int `json:"rx1DROffset"`
+		Rx2DR int `json:"rx2DR"`
+		RxDelay int `json:"rxDelay"`
+		RxWindow string `json:"rxWindow"`
+	} `json:"result"`
+	TotalCount string `json:"totalCount"`
+}
+
+func main() {
+
+url := fmt.Sprintf("https://192.168.0.100:8888/api/nodeSession/0004A30B001B4530")
+
+	// Build the request
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal("NewRequest: ", err)
+		return
+	}
+
+  tr := &http.Transport{
+        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+    }
+
+	client := &http.Client{Transport: tr}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal("Do: ", err)
+		return
+	}
+
+	defer resp.Body.Close()
+
+        var record ApiGetNodeSessionResponse
+
+
+	if err := json.NewDecoder(resp.Body).Decode(&record); err != nil {
+		log.Println(err)
+	}
+
+	fmt.Println("devAddr = ", record.DevAddr)
+	fmt.Println("devEUI  = ", record.DevEUI)
+	fmt.Println("fCntDown= ", record.FCntDown )
+        record.FCntDown = record.FCntDown // +1
+        fmt.Println("fCntDown= ", record.FCntDown )
+
+	b, err := json.Marshal(record)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+
+    
+	
+	fmt.Println(string(b))
+
+
+url = fmt.Sprintf("https://192.168.0.100:8888/api/nodeSession/0004A30B001B4530")
+
+
+    req, err = http.NewRequest("PUT", url, bytes.NewBuffer(b))
+    req.Header.Set("Content-Type", "application/json")
+    req.Header.Set("Accept", "application/json")
+
+    client = &http.Client{Transport: tr}
+
+	resp, err = client.Do(req)
+	if err != nil {
+		log.Fatal("Do: ", err)
+		return
+	}
+
+    defer resp.Body.Close()
+
+    fmt.Println("response Status:", resp.Status)
+    fmt.Println("response Headers:", resp.Header)
+    body, _ := ioutil.ReadAll(resp.Body)
+    fmt.Println("response Body:", string(body))
+
+
+//	fmt.Println("Carrier   = ", record.Carrier)
+//	fmt.Println("LineType  = ", record.LineType)
+        fmt.Println("Resp.Body  = ", resp.Body)
+
+var nwkSKey1,appSKey1 [16]byte
+var devAddr1 [4]byte
+nwkSKey2,_ := hex.DecodeString(record.NwkSKey)
+appSKey2,_ := hex.DecodeString(record.AppSKey)
+devAddr2,_ := hex.DecodeString(record.DevAddr)
+
+
+copy(nwkSKey1[:], nwkSKey2[0:16])
+copy(appSKey1[:], appSKey2[0:16])
+copy(devAddr1[:], devAddr2[0:4])
+
+//nodes start
+
+  
+  url = fmt.Sprintf("https://192.168.0.100:8888/api/node?limit=20")
+	req, err = http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal("NewRequest: ", err)
+		return
+	}
+
+  tr = &http.Transport{
+        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+    }
+	client = &http.Client{Transport: tr}
+
+	resp, err = client.Do(req)
+	if err != nil {
+		log.Fatal("Do: ", err)
+		return
+	}
+
+	defer resp.Body.Close()
+  	var recordOfNodes ApiGetNodes
+
+	// Use json.Decode for reading streams of JSON data
+	if err := json.NewDecoder(resp.Body).Decode(&recordOfNodes); err != nil {
+		log.Println(err)
+	}
+	nodesTotalCount , _ := strconv.Atoi(recordOfNodes.TotalCount)
+	fmt.Println("TotalCount = ", nodesTotalCount)
+	for i := 0; i < nodesTotalCount; i++ {
+		fmt.Println("(",i+1,")", " DevEUI = ", recordOfNodes.Result[i].DevEUI)
+	}
+	fmt.Println("( 0 ) is exit")
+
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter selection: ")
+	sel, _ := reader.ReadString('\n')
+	selectedNode, _ := strconv.Atoi(strings.TrimRight(sel,"\n"))
+	if selectedNode == 0 {
+		fmt.Println("no selection")
+		os.Exit(0)
+	}
+//	fmt.Println(selectedNode)
+	selectedNode=selectedNode-1 //index starts with 0
+
+
+//nodes end
+
+//get data from selected node start
+
+	url = fmt.Sprintf("https://192.168.0.100:8888/api/nodeSession/"+recordOfNodes.Result[selectedNode].DevEUI)
+	req, err = http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Fatal("NewRequest: ", err)
+		return
+	}
+
+  tr = &http.Transport{
+        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+    }
+	client = &http.Client{Transport: tr}
+
+	resp, err = client.Do(req)
+	if err != nil {
+		log.Fatal("Do: ", err)
+		return
+	}
+
+	defer resp.Body.Close()
+	var record2 ApiGetNodeSessionResponse
+
+	// Use json.Decode for reading streams of JSON data
+	if err := json.NewDecoder(resp.Body).Decode(&record2); err != nil {
+		log.Println(err)
+	}
+        if record2.DevEUI == "" {
+                fmt.Println("There is no session for selected DevEUI")
+                os.Exit(0)
+        }
+ 
+	fmt.Println("devEUI = ", record2.DevEUI)
+	fmt.Println("devAddr = ", record2.DevAddr)
+	fmt.Println("nwkSKey = ", record2.NwkSKey)
+	
+//get data from selecetd node end
+
+//input port and data start
+
+        reader = bufio.NewReader(os.Stdin)
+        fmt.Print("Enter port number (1-200): ")
+        sel, _ = reader.ReadString('\n')
+        port, _ := strconv.Atoi(strings.TrimRight(sel,"\n"))
+        if (port < 1) || (port > 200) {
+                fmt.Println("wrong port number")
+                os.Exit(0)
+        }
+        fmt.Println("selected port: ",port)
+
+        reader = bufio.NewReader(os.Stdin)
+        fmt.Print("Enter message in bytes (max. 52 bytes): ")
+        sel, _ = reader.ReadString('\n')
+        msg, err2 := hex.DecodeString(strings.TrimRight(sel,"\n"))
+
+	if err2 != nil  {
+                fmt.Println("wrong message")
+                os.Exit(0)
+        }
+        fmt.Println("message: ",msg)
+
+
+//input port and data end
+
+// prepare data start
+
+var nwkSKey0,appSKey0 [16]byte
+var devAddr0 [4]byte
+nwkSKey3,_ := hex.DecodeString(record2.NwkSKey)
+appSKey3,_ := hex.DecodeString(record2.AppSKey)
+devAddr3,_ := hex.DecodeString(record2.DevAddr)
+
+copy(nwkSKey0[:], nwkSKey3[0:16])
+copy(appSKey0[:], appSKey3[0:16])
+copy(devAddr0[:], devAddr3[0:4])
+fPort0 := uint8(port)
+//record2.FCntDown = record2.FCntDown + 1
+record2.FCntDown ++
+
+fmt.Println("counter down plus", record2.FCntDown)
+// prepare data end
+
+
+
+//fmt.Println("nwks1: ",nwkSKey1)
+
+//nwkSKey := [16]byte{111, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+//appSKey := [16]byte{161, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1}
+//fPort := uint8(99)
+
+
+//fmt.Println("nwks0: ",nwkSKey)
+
+
+phy := lorawan.PHYPayload{
+    MHDR: lorawan.MHDR{
+        MType: lorawan.UnconfirmedDataDown,
+        Major: lorawan.LoRaWANR1,
+    },
+    MACPayload: &lorawan.MACPayload{
+        FHDR: lorawan.FHDR{
+            DevAddr: lorawan.DevAddr(devAddr0),
+            FCtrl: lorawan.FCtrl{
+                ADR:       false,
+                ADRACKReq: false,
+                ACK:       false,
+            },
+            FCnt:  record2.FCntDown,
+            FOpts: []lorawan.MACCommand{}, // you can leave this out when there is no MAC command to send
+        },
+        FPort:      &fPort0,
+        FRMPayload: []lorawan.Payload{&lorawan.DataPayload{Bytes: msg}},
+    },
+}
+
+if err := phy.EncryptFRMPayload(appSKey0); err != nil {
+    panic(err)
+}
+
+if err := phy.SetMIC(nwkSKey0); err != nil {
+    panic(err)
+}
+
+str, err := phy.MarshalText()
+if err != nil {
+    panic(err)
+}
+
+loraBytes, err := phy.MarshalBinary()
+if err != nil {
+    panic(err)
+}
+
+fmt.Println(string(str))
+fmt.Println(loraBytes)
+
+//write back start
+
+
+	b4, err4 := json.Marshal(record2)
+	if err4 != nil {
+		fmt.Println("error:", err4)
+	}
+	fmt.Println("JSON:", string(b4))
+	req4, err4 := http.NewRequest("PUT", url, bytes.NewBuffer(b4))
+	req4.Header.Set("Content-Type", "application/json")
+	req4.Header.Set("Accept", "application/json")
+
+    	client = &http.Client{Transport: tr}
+
+	resp, err = client.Do(req4)
+	if err != nil {
+		log.Fatal("Do: ", err)
+		return
+	}
+
+    	defer resp.Body.Close()
+
+    	fmt.Println("response Status:", resp.Status)
+    	fmt.Println("response Headers:", resp.Header)
+    	body, _ = ioutil.ReadAll(resp.Body)
+    	fmt.Println("response Body:", string(body))
+
+//write back ... end
+
+
+}
+
